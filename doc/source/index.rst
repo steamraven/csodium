@@ -16,7 +16,15 @@ Table of contents
 =================
 
 .. toctree::
+   :hidden:
+
+   self
+
+.. toctree::
    :maxdepth: 2
+
+
+   API Documentation <apidoc/csodium.rst>
 
 Indices and tables
 ==================
