@@ -37,14 +37,19 @@ def _assert_min_len(name, buf, min_size):
     assert buf, "%s cannot be NULL" % name
 
     assert min_size <= len(buf), (
-            "%s must be at least %d bytes long" % (name, min_size)
-        )
+        "%s must be at least %d bytes long" % (name, min_size)
+    )
 
+
+def _from_buffer(buf):
+    return ffi.cast("unsigned char *", ffi.from_buffer(buf))
 
 # random family.
+
+
 def randombytes(size):
     buf = bytearray(size)
-    lib.randombytes(ffi.cast("unsigned char *", ffi.from_buffer(buf)), size)
+    lib.randombytes(_from_buffer(buf), size)
     return binary_type(buf)
 
 # crypto_box family.
@@ -62,8 +67,8 @@ def crypto_box_keypair():
     sk = bytearray(crypto_box_SECRETKEYBYTES)
     _raise_on_error(
         lib.crypto_box_keypair(
-            ffi.cast("unsigned char *", ffi.from_buffer(pk)),
-            ffi.cast("unsigned char *", ffi.from_buffer(sk)),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -77,9 +82,9 @@ def crypto_box_seed_keypair(seed):
     sk = bytearray(crypto_box_SECRETKEYBYTES)
     _raise_on_error(
         lib.crypto_box_seed_keypair(
-            ffi.cast("unsigned char *", ffi.from_buffer(pk)),
-            ffi.cast("unsigned char *", ffi.from_buffer(sk)),
-            seed,
+            _from_buffer(pk),
+            _from_buffer(sk),
+            _from_buffer(seed),
         ),
     )
 
@@ -93,9 +98,9 @@ def crypto_box_beforenm(pk, sk):
     k = bytearray(crypto_box_BEFORENMBYTES)
     _raise_on_error(
         lib.crypto_box_beforenm(
-            ffi.cast("unsigned char *", ffi.from_buffer(k)),
-            pk,
-            sk,
+            _from_buffer(k),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -110,12 +115,12 @@ def crypto_box(msg, nonce, pk, sk):
     c = bytearray(crypto_box_MACBYTES + len(msg))
     _raise_on_error(
         lib.crypto_box_easy(
-            ffi.cast("unsigned char *", ffi.from_buffer(c)),
-            msg,
+            _from_buffer(c),
+            _from_buffer(msg),
             len(msg),
-            nonce,
-            pk,
-            sk,
+            _from_buffer(nonce),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -129,11 +134,11 @@ def crypto_box_afternm(msg, nonce, k):
     c = bytearray(crypto_box_MACBYTES + len(msg))
     _raise_on_error(
         lib.crypto_box_easy_afternm(
-            ffi.cast("unsigned char *", ffi.from_buffer(c)),
-            msg,
+            _from_buffer(c),
+            _from_buffer(msg),
             len(msg),
-            nonce,
-            k,
+            _from_buffer(nonce),
+            _from_buffer(k),
         ),
     )
 
@@ -149,12 +154,12 @@ def crypto_box_open(c, nonce, pk, sk):
     msg = bytearray(len(c) - crypto_box_MACBYTES)
     _raise_on_error(
         lib.crypto_box_open_easy(
-            ffi.cast("unsigned char *", ffi.from_buffer(msg)),
-            c,
+            _from_buffer(msg),
+            _from_buffer(c),
             len(c),
-            nonce,
-            pk,
-            sk,
+            _from_buffer(nonce),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -169,11 +174,11 @@ def crypto_box_open_afternm(c, nonce, k):
     msg = bytearray(len(c) - crypto_box_MACBYTES)
     _raise_on_error(
         lib.crypto_box_open_easy_afternm(
-            ffi.cast("unsigned char *", ffi.from_buffer(msg)),
-            c,
+            _from_buffer(msg),
+            _from_buffer(c),
             len(c),
-            nonce,
-            k,
+            _from_buffer(nonce),
+            _from_buffer(k),
         ),
     )
 
@@ -186,10 +191,10 @@ def crypto_box_seal(msg, pk):
     c = bytearray(len(msg) + crypto_box_SEALBYTES)
     _raise_on_error(
         lib.crypto_box_seal(
-            ffi.cast("unsigned char *", ffi.from_buffer(c)),
-            msg,
+            _from_buffer(c),
+            _from_buffer(msg),
             len(msg),
-            pk,
+            _from_buffer(pk),
         ),
     )
 
@@ -204,11 +209,11 @@ def crypto_box_seal_open(c, pk, sk):
     msg = bytearray(len(c) - crypto_box_SEALBYTES)
     _raise_on_error(
         lib.crypto_box_seal_open(
-            ffi.cast("unsigned char *", ffi.from_buffer(msg)),
-            c,
+            _from_buffer(msg),
+            _from_buffer(c),
             len(c),
-            pk,
-            sk,
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -224,13 +229,13 @@ def crypto_box_detached(msg, nonce, pk, sk):
     mac = bytearray(crypto_box_MACBYTES)
     _raise_on_error(
         lib.crypto_box_detached(
-            ffi.cast("unsigned char *", ffi.from_buffer(c)),
-            ffi.cast("unsigned char *", ffi.from_buffer(mac)),
-            msg,
+            _from_buffer(c),
+            _from_buffer(mac),
+            _from_buffer(msg),
             len(msg),
-            nonce,
-            pk,
-            sk,
+            _from_buffer(nonce),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -246,13 +251,13 @@ def crypto_box_open_detached(c, mac, nonce, pk, sk):
     msg = bytearray(len(c))
     _raise_on_error(
         lib.crypto_box_open_detached(
-            ffi.cast("unsigned char *", ffi.from_buffer(msg)),
-            c,
-            mac,
+            _from_buffer(msg),
+            _from_buffer(c),
+            _from_buffer(mac),
             len(c),
-            nonce,
-            pk,
-            sk,
+            _from_buffer(nonce),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -272,11 +277,11 @@ def crypto_secretbox(msg, nonce, k):
     c = bytearray(crypto_secretbox_MACBYTES + len(msg))
     _raise_on_error(
         lib.crypto_secretbox_easy(
-            ffi.cast("unsigned char *", ffi.from_buffer(c)),
-            msg,
+            _from_buffer(c),
+            _from_buffer(msg),
             len(msg),
-            nonce,
-            k,
+            _from_buffer(nonce),
+            _from_buffer(k),
         ),
     )
 
@@ -291,11 +296,11 @@ def crypto_secretbox_open(c, nonce, k):
     msg = bytearray(len(c) - crypto_secretbox_MACBYTES)
     _raise_on_error(
         lib.crypto_secretbox_open_easy(
-            ffi.cast("unsigned char *", ffi.from_buffer(msg)),
-            c,
+            _from_buffer(msg),
+            _from_buffer(c),
             len(c),
-            nonce,
-            k,
+            _from_buffer(nonce),
+            _from_buffer(k),
         ),
     )
 
@@ -335,9 +340,9 @@ def crypto_generichash(in_, key, outlen=crypto_generichash_BYTES):
         lib.crypto_generichash(
             ffi.cast('unsigned char *', ffi.from_buffer(buf)),
             outlen,
-            in_ if in_ is not None else ffi.NULL,
+            _from_buffer(in_) if in_ is not None else ffi.NULL,
             len(in_ or ()),
-            key if key is not None else ffi.NULL,
+            _from_buffer(key) if key is not None else ffi.NULL,
             len(key or ()),
         ),
     )
@@ -366,7 +371,7 @@ def crypto_generichash_init(key, outlen=crypto_generichash_BYTES):
     _raise_on_error(
         lib.crypto_generichash_init(
             ffi.cast('crypto_generichash_state *', ffi.from_buffer(state)),
-            key if key is not None else ffi.NULL,
+            _from_buffer(key) if key is not None else ffi.NULL,
             len(key or ()),
             outlen,
         ),
@@ -380,7 +385,7 @@ def crypto_generichash_update(state, in_):
     _raise_on_error(
         lib.crypto_generichash_update(
             ffi.cast('crypto_generichash_state *', ffi.from_buffer(state)),
-            in_,
+            _from_buffer(in_),
             len(in_),
         ),
     )
@@ -403,7 +408,7 @@ def crypto_generichash_final(state, outlen=crypto_generichash_BYTES):
     _raise_on_error(
         lib.crypto_generichash_final(
             ffi.cast("crypto_generichash_state *", ffi.from_buffer(state)),
-            ffi.cast("unsigned char *", ffi.from_buffer(buf)),
+            _from_buffer(buf),
             outlen,
         ),
     )
@@ -461,14 +466,14 @@ def crypto_generichash_blake2b_salt_personal(
 
     _raise_on_error(
         lib.crypto_generichash_blake2b_salt_personal(
-            ffi.cast('unsigned char *', ffi.from_buffer(buf)),
+            _from_buffer(buf),
             outlen,
-            in_ if in_ is not None else ffi.NULL,
+            _from_buffer(in_) if in_ is not None else ffi.NULL,
             len(in_ or ()),
-            key,
+            _from_buffer(key),
             len(key),
-            salt,
-            personal if personal is not None else ffi.NULL,
+            _from_buffer(salt),
+            _from_buffer(personal) if personal is not None else ffi.NULL,
         ),
     )
     return binary_type(buf)
@@ -511,11 +516,11 @@ def crypto_generichash_blake2b_init_salt_personal(
                 'crypto_generichash_blake2b_state *',
                 ffi.from_buffer(state)
             ),
-            key,
+            _from_buffer(key),
             len(key),
             outlen,
-            salt,
-            personal if personal is not None else ffi.NULL,
+            _from_buffer(salt),
+            _from_buffer(personal) if personal is not None else ffi.NULL,
         ),
     )
     return state
@@ -533,8 +538,8 @@ def crypto_sign_keypair():
     sk = bytearray(crypto_sign_SECRETKEYBYTES)
     _raise_on_error(
         lib.crypto_sign_keypair(
-            ffi.cast("unsigned char *", ffi.from_buffer(pk)),
-            ffi.cast("unsigned char *", ffi.from_buffer(sk)),
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
@@ -548,9 +553,9 @@ def crypto_sign_seed_keypair(seed):
     sk = bytearray(crypto_sign_SECRETKEYBYTES)
     _raise_on_error(
         lib.crypto_sign_seed_keypair(
-            ffi.cast("unsigned char *", ffi.from_buffer(pk)),
-            ffi.cast("unsigned char *", ffi.from_buffer(sk)),
-            seed,
+            _from_buffer(pk),
+            _from_buffer(sk),
+            _from_buffer(seed),
         ),
     )
 
@@ -563,11 +568,11 @@ def crypto_sign(msg, sk):
     signed_msg = bytearray(crypto_sign_BYTES + len(msg))
     _raise_on_error(
         lib.crypto_sign(
-            ffi.cast("unsigned char *", ffi.from_buffer(signed_msg)),
+            _from_buffer(signed_msg),
             ffi.NULL,
-            msg,
+            _from_buffer(msg),
             len(msg),
-            sk,
+            _from_buffer(sk),
         ),
     )
 
@@ -581,11 +586,11 @@ def crypto_sign_open(signed_msg, pk):
     msg = bytearray(len(signed_msg) - crypto_sign_BYTES)
     _raise_on_error(
         lib.crypto_sign_open(
-            ffi.cast("unsigned char *", ffi.from_buffer(msg)),
+            _from_buffer(msg),
             ffi.NULL,
-            signed_msg,
+            _from_buffer(signed_msg),
             len(signed_msg),
-            pk,
+            _from_buffer(pk),
         ),
     )
 
@@ -598,11 +603,11 @@ def crypto_sign_detached(msg, sk):
     sig = bytearray(crypto_sign_BYTES)
     _raise_on_error(
         lib.crypto_sign_detached(
-            ffi.cast("unsigned char *", ffi.from_buffer(sig)),
+            _from_buffer(sig),
             ffi.NULL,
-            msg,
+            _from_buffer(msg),
             len(msg),
-            sk,
+            _from_buffer(sk),
         ),
     )
 
@@ -615,10 +620,10 @@ def crypto_sign_verify_detached(msg, sig, pk):
 
     _raise_on_error(
         lib.crypto_sign_verify_detached(
-            sig,
-            msg,
+            _from_buffer(sig),
+            _from_buffer(msg),
             len(msg),
-            pk,
+            _from_buffer(pk),
         ),
     )
 
@@ -637,8 +642,8 @@ def crypto_sign_ed25519_pk_to_curve25519(ed25519_pk):
     curve25519_pk = bytearray(crypto_scalarmult_curve25519_BYTES)
     _raise_on_error(
         lib.crypto_sign_ed25519_pk_to_curve25519(
-            ffi.cast("unsigned char *", ffi.from_buffer(curve25519_pk)),
-            ffi.cast("unsigned char *", ffi.from_buffer(ed25519_pk)),
+            _from_buffer(curve25519_pk),
+            _from_buffer(ed25519_pk),
         ),
     )
 
@@ -650,8 +655,8 @@ def crypto_sign_ed25519_sk_to_curve25519(ed25519_sk):
     curve25519_sk = bytearray(crypto_scalarmult_curve25519_BYTES)
     _raise_on_error(
         lib.crypto_sign_ed25519_sk_to_curve25519(
-            ffi.cast("unsigned char *", ffi.from_buffer(curve25519_sk)),
-            ffi.cast("unsigned char *", ffi.from_buffer(ed25519_sk)),
+            _from_buffer(curve25519_sk),
+            _from_buffer(ed25519_sk),
         ),
     )
 
@@ -663,8 +668,8 @@ def crypto_sign_ed25519_sk_to_seed(sk):
     seed = bytearray(crypto_sign_ed25519_SEEDBYTES)
     _raise_on_error(
         lib.crypto_sign_ed25519_sk_to_seed(
-            ffi.cast("unsigned char *", ffi.from_buffer(seed)),
-            sk,
+            _from_buffer(seed),
+            _from_buffer(sk),
         ),
     )
 
@@ -676,8 +681,8 @@ def crypto_sign_ed25519_sk_to_pk(sk):
     pk = bytearray(crypto_sign_ed25519_PUBLICKEYBYTES)
     _raise_on_error(
         lib.crypto_sign_ed25519_sk_to_pk(
-            ffi.cast("unsigned char *", ffi.from_buffer(pk)),
-            sk,
+            _from_buffer(pk),
+            _from_buffer(sk),
         ),
     )
 
