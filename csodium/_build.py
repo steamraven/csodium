@@ -99,6 +99,8 @@ int crypto_box_open_detached(
 size_t crypto_secretbox_keybytes(void);
 size_t crypto_secretbox_noncebytes(void);
 size_t crypto_secretbox_macbytes(void);
+size_t crypto_secretbox_zerobytes(void);
+size_t crypto_secretbox_boxzerobytes(void);
 int crypto_secretbox_easy(
     unsigned char* c,
     const unsigned char* m,
@@ -113,7 +115,22 @@ int crypto_secretbox_open_easy(
     const unsigned char* n,
     const unsigned char* k
 );
-
+int crypto_secretbox_detached(
+    unsigned char *c,
+    unsigned char *mac,
+    const unsigned char *m,
+    unsigned long long mlen,
+    const unsigned char *n,
+    const unsigned char *k
+);
+int crypto_secretbox_open_detached(
+    unsigned char *m,
+    const unsigned char *c,
+    const unsigned char *mac,
+    unsigned long long clen,
+    const unsigned char *n,
+    const unsigned char *k
+);
 size_t  crypto_generichash_bytes_min(void);
 size_t  crypto_generichash_bytes_max(void);
 size_t  crypto_generichash_bytes(void);
@@ -201,6 +218,50 @@ int crypto_sign_ed25519_sk_to_seed(unsigned char *seed,
                                    const unsigned char *sk);
 int crypto_sign_ed25519_sk_to_pk(unsigned char *pk, const unsigned char *sk);
 
+size_t  crypto_stream_keybytes(void);
+size_t  crypto_stream_noncebytes(void);
+
+int crypto_stream(unsigned char *c, unsigned long long clen,
+                  const unsigned char *n, const unsigned char *k);
+
+int crypto_stream_xor(unsigned char *c, const unsigned char *m,
+                      unsigned long long mlen, const unsigned char *n,
+                      const unsigned char *k);
+
+size_t crypto_stream_xsalsa20_keybytes(void);
+size_t crypto_stream_xsalsa20_noncebytes(void);
+
+int crypto_stream_xsalsa20_xor_ic(unsigned char *c, const unsigned char *m,
+                                  unsigned long long mlen,
+                                  const unsigned char *n, uint64_t ic,
+                                  const unsigned char *k);
+
+size_t crypto_stream_salsa20_keybytes(void);
+size_t crypto_stream_salsa20_noncebytes(void);
+
+int crypto_stream_salsa20(unsigned char *c,
+                                  unsigned long long clen,
+                                  const unsigned char *n,
+                                  const unsigned char *k);
+
+
+int crypto_stream_salsa20_xor(unsigned char *c, const unsigned char *m,
+                                  unsigned long long mlen,
+                                  const unsigned char *n,
+                                  const unsigned char *k);
+
+int crypto_stream_salsa20_xor_ic(unsigned char *c, const unsigned char *m,
+                                  unsigned long long mlen,
+                                  const unsigned char *n, uint64_t ic,
+                                  const unsigned char *k);
+
+size_t crypto_core_hsalsa20_outputbytes(void);
+size_t crypto_core_hsalsa20_inputbytes(void);
+size_t crypto_core_hsalsa20_keybytes(void);
+size_t crypto_core_hsalsa20_constbytes(void);
+
+int crypto_core_hsalsa20(unsigned char *out, const unsigned char *in,
+                         const unsigned char *k, const unsigned char *c);
 ''')
 
 # On Windows, we compile with libsodium statically, so that users of the wheel

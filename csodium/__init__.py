@@ -268,6 +268,8 @@ def crypto_box_open_detached(c, mac, nonce, pk, sk):
 crypto_secretbox_KEYBYTES = lib.crypto_secretbox_keybytes()
 crypto_secretbox_NONCEBYTES = lib.crypto_secretbox_noncebytes()
 crypto_secretbox_MACBYTES = lib.crypto_secretbox_macbytes()
+crypto_secretbox_ZEROBYTES = lib.crypto_secretbox_zerobytes()
+crytpo_secretbox_BOXZEROBYTES = lib.crypto_secretbox_boxzerobytes()
 
 
 def crypto_secretbox(msg, nonce, k):
@@ -306,6 +308,45 @@ def crypto_secretbox_open(c, nonce, k):
 
     return binary_type(msg)
 
+
+def crypto_secretbox_detached(msg, nonce, k):
+    _assert_len('nonce', nonce, crypto_secretbox_NONCEBYTES)
+    _assert_len('k', k, crypto_secretbox_KEYBYTES)
+
+    c = bytearray(len(msg))
+    mac = bytearray(crypto_secretbox_MACBYTES)
+    _raise_on_error(
+        lib.crypto_secretbox_detached(
+            _from_buffer(c),
+            _from_buffer(mac),
+            _from_buffer(msg),
+            len(msg),
+            _from_buffer(nonce),
+            _from_buffer(k),
+        ),
+    )
+
+    return binary_type(c), binary_type(mac)
+
+
+def crypto_secretbox_open_detached(c, mac, nonce, k):
+    _assert_len('mac', mac, crypto_secretbox_MACBYTES)
+    _assert_len('nonce', nonce, crypto_secretbox_NONCEBYTES)
+    _assert_len('k', k, crypto_secretbox_KEYBYTES)
+
+    msg = bytearray(len(c))
+    _raise_on_error(
+        lib.crypto_secretbox_open_detached(
+            _from_buffer(msg),
+            _from_buffer(c),
+            _from_buffer(mac),
+            len(c),
+            _from_buffer(nonce),
+            _from_buffer(k),
+        ),
+    )
+
+    return binary_type(msg)
 
 crypto_generichash_BYTES_MIN = lib.crypto_generichash_bytes_min()
 crypto_generichash_BYTES_MAX = lib.crypto_generichash_bytes_max()
@@ -687,3 +728,149 @@ def crypto_sign_ed25519_sk_to_pk(sk):
     )
 
     return binary_type(pk)
+
+crypto_stream_KEYBYTES = lib.crypto_stream_keybytes()
+crypto_stream_NONCEBYTES = lib.crypto_stream_noncebytes()
+
+
+def crypto_stream(clen, nonce, k):
+    _assert_len("nonce", nonce, crypto_stream_NONCEBYTES)
+    _assert_len("k", k, crypto_stream_KEYBYTES)
+
+    c = bytearray(clen)
+    _raise_on_error(
+        lib.crypto_stream(
+            _from_buffer(c),
+            clen,
+            _from_buffer(nonce),
+            _from_buffer(k)
+        ),
+    )
+
+    return binary_type(c)
+
+
+def crypto_stream_xor(msg, nonce, k):
+    _assert_len("nonce", nonce, crypto_stream_NONCEBYTES)
+    _assert_len("k", k, crypto_stream_KEYBYTES)
+
+    mlen = len(msg)
+    c = bytearray(mlen)
+    _raise_on_error(
+        lib.crypto_stream_xor(
+            _from_buffer(c),
+            _from_buffer(msg),
+            mlen,
+            _from_buffer(nonce),
+            _from_buffer(k),
+        ),
+    )
+    return binary_type(c)
+
+
+crypto_stream_xsalsa20_KEYBYTES = lib.crypto_stream_xsalsa20_keybytes()
+crypto_stream_xsalsa20_NONCEBYTES = lib.crypto_stream_xsalsa20_noncebytes()
+
+
+def crypto_stream_xsalsa20_xor_ic(msg, nonce, ic, k):
+    _assert_len("nonce", nonce, crypto_stream_xsalsa20_NONCEBYTES)
+    _assert_len("k", k, crypto_stream_xsalsa20_KEYBYTES)
+
+    mlen = len(msg)
+    c = bytearray(mlen)
+    _raise_on_error(
+        lib.crypto_stream_xsalsa20_xor_ic(
+            _from_buffer(c),
+            _from_buffer(msg),
+            mlen,
+            _from_buffer(nonce),
+            ic,
+            _from_buffer(k),
+        ),
+    )
+
+    return binary_type(c)
+
+crypto_stream_salsa20_KEYBYTES = lib.crypto_stream_salsa20_keybytes()
+crypto_stream_salsa20_NONCEBYTES = lib.crypto_stream_salsa20_noncebytes()
+
+
+def crypto_stream_salsa20(clen, nonce, k):
+    _assert_len("nonce", nonce, crypto_stream_salsa20_NONCEBYTES)
+    _assert_len("k", k, crypto_stream_salsa20_KEYBYTES)
+
+    c = bytearray(clen)
+    _raise_on_error(
+        lib.crypto_stream_salsa20(
+            _from_buffer(c),
+            clen,
+            _from_buffer(nonce),
+            _from_buffer(k),
+        ),
+    )
+
+    return binary_type(c)
+
+
+def crypto_stream_salsa20_xor(msg, nonce, k):
+    _assert_len("nonce", nonce, crypto_stream_salsa20_NONCEBYTES)
+    _assert_len("k", k, crypto_stream_salsa20_KEYBYTES)
+
+    mlen = len(msg)
+    c = bytearray(mlen)
+    _raise_on_error(
+        lib.crypto_stream_salsa20_xor(
+            _from_buffer(c),
+            _from_buffer(msg),
+            mlen,
+            _from_buffer(nonce),
+            _from_buffer(k),
+        ),
+    )
+
+    return binary_type(c)
+
+
+def crypto_stream_salsa20_xor_ic(msg, nonce, ic, k):
+    _assert_len("nonce", nonce, crypto_stream_salsa20_NONCEBYTES)
+    _assert_len("k", k, crypto_stream_salsa20_KEYBYTES)
+
+    mlen = len(msg)
+    c = bytearray(mlen)
+    _raise_on_error(
+        lib.crypto_stream_salsa20_xor_ic(
+            _from_buffer(c),
+            _from_buffer(msg),
+            mlen,
+            _from_buffer(nonce),
+            ic,
+            _from_buffer(k),
+        ),
+    )
+
+    return binary_type(c)
+
+crypto_core_hsalsa20_OUTPUTBYTES = lib.crypto_core_hsalsa20_outputbytes()
+crypto_core_hsalsa20_INPUTBYTES = lib.crypto_core_hsalsa20_inputbytes()
+crypto_core_hsalsa20_KEYBYTES = lib.crypto_core_hsalsa20_keybytes()
+crypto_core_hsalsa20_CONSTBYTES = lib.crypto_core_hsalsa20_constbytes()
+
+
+def crypto_core_hsalsa20(in_, k, c):
+    _assert_len("in_", in_, crypto_core_hsalsa20_INPUTBYTES)
+    _assert_len("k", k, crypto_core_hsalsa20_KEYBYTES)
+    if (c is not None or
+            SODIUM_VERSION < (1, 0, 9)):  # pragma: no cover
+        _assert_len("c", c, crypto_core_hsalsa20_CONSTBYTES)
+
+    out = bytearray(crypto_core_hsalsa20_OUTPUTBYTES)
+    _raise_on_error(
+        lib.crypto_core_hsalsa20(
+            _from_buffer(out),
+            _from_buffer(in_),
+            _from_buffer(k),
+            _from_buffer(c) if c is not None else ffi.NULL,
+        ),
+    ),
+
+    return binary_type(out)

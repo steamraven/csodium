@@ -27,6 +27,8 @@ from csodium import (
     crypto_box_seed_keypair,
     crypto_secretbox,
     crypto_secretbox_open,
+    crypto_secretbox_detached,
+    crypto_secretbox_open_detached,
     randombytes,
     crypto_generichash_BYTES,
     crypto_generichash_STATEBYTES,
@@ -58,6 +60,17 @@ from csodium import (
     crypto_sign_ed25519_sk_to_curve25519,
     crypto_sign_ed25519_sk_to_seed,
     crypto_sign_ed25519_sk_to_pk,
+    crypto_stream,
+    crypto_stream_xor,
+    crypto_stream_xsalsa20_xor_ic,
+    crypto_stream_salsa20,
+    crypto_stream_salsa20_xor,
+    crypto_stream_salsa20_xor_ic,
+    crypto_stream_salsa20_NONCEBYTES,
+    crypto_core_hsalsa20_INPUTBYTES,
+    crypto_core_hsalsa20_CONSTBYTES,
+    crypto_core_hsalsa20_OUTPUTBYTES,
+    crypto_core_hsalsa20,
 )
 
 
@@ -542,6 +555,79 @@ def test_crypto_secretbox_open(nonce, k):
     assert msg == b'foo'
 
 
+def test_crypto_secretbox_detached_invalid_nonce(k):
+    with pytest.raises(AssertionError):
+        crypto_secretbox_detached(
+            msg=b'foo',
+            nonce=b'',
+            k=k,
+        )
+
+
+def test_crypto_secretbox_detached_invalid_k(nonce):
+    with pytest.raises(AssertionError):
+        crypto_secretbox_detached(
+            msg=b'foo',
+            nonce=nonce,
+            k=b'',
+        )
+
+
+def test_crypto_secretbox_detached(nonce, k):
+    c, mac = crypto_secretbox_detached(
+        msg=b'foo',
+        nonce=nonce,
+        k=k,
+    )
+    assert isinstance(c, binary_type)
+    assert isinstance(mac, binary_type)
+
+
+def test_crypto_secretbox_open_detached_invalid_mac(nonce, k):
+    with pytest.raises(AssertionError):
+        crypto_secretbox_open_detached(
+            c=b'',
+            mac=b'',
+            nonce=nonce,
+            k=k,
+        )
+
+
+def test_crypto_secretbox_open_detached_invalid_nonce(mac, k):
+    with pytest.raises(AssertionError):
+        crypto_secretbox_open_detached(
+            c=b'',
+            mac=mac,
+            nonce=b'',
+            k=k,
+        )
+
+
+def test_crypto_secretbox_open_detached_invalid_k(mac, nonce):
+    with pytest.raises(AssertionError):
+        crypto_secretbox_open_detached(
+            c=b'',
+            mac=mac,
+            nonce=nonce,
+            k=b'',
+        )
+
+
+def test_crypto_secretbox_open_detached(nonce, k):
+    c, mac = crypto_secretbox_detached(
+        msg=b'foo',
+        nonce=nonce,
+        k=k,
+    )
+    msg = crypto_secretbox_open_detached(
+        c=c,
+        mac=mac,
+        nonce=nonce,
+        k=k,
+    )
+    assert msg == b'foo'
+
+
 def test_crypto_generichash_key_too_short():
     with pytest.raises(AssertionError):
         crypto_generichash(
@@ -997,3 +1083,259 @@ def test_crypto_sign_ed25519_sk_to_pk():
         b'x' * crypto_sign_ed25519_SECRETKEYBYTES
     )
     assert len(pk) == crypto_sign_ed25519_PUBLICKEYBYTES
+
+
+def test_crypto_stream_invalid_nonce(key):
+    with pytest.raises(AssertionError):
+        crypto_stream(
+            clen=10,
+            nonce=b'',
+            k=key,
+        )
+
+
+def test_crypto_stream_invalid_k(nonce):
+    with pytest.raises(AssertionError):
+        crypto_stream(
+            clen=10,
+            nonce=nonce,
+            k=b'',
+        )
+
+
+def test_crypto_stream(nonce, key):
+    c = crypto_stream(
+        clen=10,
+        nonce=nonce,
+        k=key,
+    )
+    assert isinstance(c, binary_type)
+    assert len(c) == 10
+
+
+def test_crypto_stream_xor_invalid_nonce(key):
+    with pytest.raises(AssertionError):
+        crypto_stream_xor(
+            msg=b'hello',
+            nonce=b'',
+            k=key,
+        )
+
+
+def test_crypto_stream_xor_invalid_k(nonce):
+    with pytest.raises(AssertionError):
+        crypto_stream_xor(
+            msg=b'hello',
+            nonce=nonce,
+            k=b'',
+        )
+
+
+def test_crypto_stream_xor(nonce, key):
+    c = crypto_stream_xor(
+        msg=b'foo',
+        nonce=nonce,
+        k=key,
+    )
+    msg = crypto_stream_xor(
+        msg=c,
+        nonce=nonce,
+        k=key,
+    )
+    assert msg == b'foo'
+
+
+def test_crypto_stream_xsalsa20_xor_ic_invalid_nonce(key):
+    with pytest.raises(AssertionError):
+        crypto_stream_xsalsa20_xor_ic(
+            msg=b'hello',
+            nonce=b'',
+            ic=0,
+            k=key,
+        )
+
+
+def test_crypto_stream_xsalsa20_xor_ic_invalid_k(nonce):
+    with pytest.raises(AssertionError):
+        crypto_stream_xsalsa20_xor_ic(
+            msg=b'hello',
+            nonce=nonce,
+            ic=0,
+            k=b'',
+        )
+
+
+def test_crypto_stream_xsalsa20_xor_ic(nonce, key):
+    c = crypto_stream_xsalsa20_xor_ic(
+        msg=b'foo',
+        nonce=nonce,
+        ic=0,
+        k=key,
+    )
+    msg = crypto_stream_xsalsa20_xor_ic(
+        msg=c,
+        nonce=nonce,
+        ic=0,
+        k=key,
+    )
+    assert msg == b'foo'
+
+
+def test_crypto_stream_salsa20_invalid_nonce(key):
+    with pytest.raises(AssertionError):
+        crypto_stream_salsa20(
+            clen=10,
+            nonce=b'',
+            k=key,
+        )
+
+
+def test_crypto_stream_salsa20_invalid_k():
+    with pytest.raises(AssertionError):
+        crypto_stream_salsa20(
+            clen=10,
+            nonce=b'x' * crypto_stream_salsa20_NONCEBYTES,
+            k=b'',
+        )
+
+
+def test_crypto_stream_salsa20(key):
+    nonce = b'x' * crypto_stream_salsa20_NONCEBYTES
+    c = crypto_stream_salsa20(
+        clen=10,
+        nonce=nonce,
+        k=key,
+    )
+
+    assert isinstance(c, binary_type)
+    assert len(c) == 10
+
+
+def test_crypto_stream_salsa20_xor_invalid_nonce(key):
+    with pytest.raises(AssertionError):
+        crypto_stream_salsa20_xor(
+            msg=b'hello',
+            nonce=b'',
+            k=key,
+        )
+
+
+def test_crypto_stream_salsa20_xor_invalid_k():
+    with pytest.raises(AssertionError):
+        crypto_stream_salsa20_xor(
+            msg=b'hello',
+            nonce=b'x' * crypto_stream_salsa20_NONCEBYTES,
+            k=b'',
+        )
+
+
+def test_crypto_stream_salsa20_xor(key):
+    nonce = b'x' * crypto_stream_salsa20_NONCEBYTES
+    c = crypto_stream_salsa20_xor(
+        msg=b'foo',
+        nonce=nonce,
+        k=key,
+    )
+    msg = crypto_stream_salsa20_xor(
+        msg=c,
+        nonce=nonce,
+        k=key,
+    )
+    assert msg == b'foo'
+
+
+def test_crypto_stream_salsa20_xor_ic_invalid_nonce(key):
+    with pytest.raises(AssertionError):
+        crypto_stream_salsa20_xor_ic(
+            msg=b'hello',
+            nonce=b'',
+            ic=0,
+            k=key,
+        )
+
+
+def test_crypto_stream_salsa20_xor_ic_invalid_k():
+    with pytest.raises(AssertionError):
+        crypto_stream_salsa20_xor_ic(
+            msg=b'hello',
+            nonce=b'x' * crypto_stream_salsa20_NONCEBYTES,
+            ic=0,
+            k=b'',
+        )
+
+
+def test_crypto_stream_salsa20_xor_ic(key):
+    nonce = b'x' * crypto_stream_salsa20_NONCEBYTES
+    c = crypto_stream_salsa20_xor_ic(
+        msg=b'foo',
+        nonce=nonce,
+        ic=0,
+        k=key,
+    )
+    msg = crypto_stream_salsa20_xor_ic(
+        msg=c,
+        nonce=nonce,
+        ic=0,
+        k=key,
+    )
+    assert msg == b'foo'
+
+
+def test_crypto_core_hsalsa20_invalid_in(key):
+    with pytest.raises(AssertionError):
+        crypto_core_hsalsa20(
+            in_=b'',
+            k=key,
+            c=b'x' * crypto_core_hsalsa20_CONSTBYTES,
+        )
+
+
+def test_crypto_core_hsalsa20_invalid_k():
+    with pytest.raises(AssertionError):
+        crypto_core_hsalsa20(
+            in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
+            k=b'',
+            c=b'x' * crypto_core_hsalsa20_CONSTBYTES,
+        )
+
+
+def test_crypto_core_hsalsa20_invalid_c(key):
+    with pytest.raises(AssertionError):
+        crypto_core_hsalsa20(
+            in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
+            k=key,
+            c=b'',
+        )
+
+
+@pytest.mark.skipif(SODIUM_VERSION < (1, 0, 9),
+                    reason="requires sodium 1.0.9")
+def test_crypto_core_hsalsa20_null_c(key):
+    out = crypto_core_hsalsa20(
+        in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
+        k=key,
+        c=None,
+    )
+    assert isinstance(out, binary_type)
+    assert len(out) == crypto_core_hsalsa20_OUTPUTBYTES
+
+
+@pytest.mark.skipif(SODIUM_VERSION >= (1, 0, 9),
+                    reason="fixed in sodium 1.0.9")
+def test_crypto_core_hsalsa20_invalid_null_c(key):
+    with pytest.raises(AssertionError):
+        crypto_core_hsalsa20(
+            in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
+            k=key,
+            c=None,
+        )
+
+
+def test_crypto_core_hsalsa20(key):
+    out = crypto_core_hsalsa20(
+        in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
+        k=key,
+        c=b'x' * crypto_core_hsalsa20_CONSTBYTES,
+    )
+    assert isinstance(out, binary_type)
+    assert len(out) == crypto_core_hsalsa20_OUTPUTBYTES
