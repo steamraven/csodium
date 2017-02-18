@@ -180,7 +180,7 @@ def test_crypto_box_seed_keypair():
                          [(bad(), sk()),
                           (pk(),  bad())],
                          ids=['invalid_pk', 'invalid_sk'])
-def test_crypto_box_beforenm_invalid(pk, sk):
+def test_crypto_box_beforenm_assert(pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_beforenm(
             pk=pk,
@@ -201,7 +201,7 @@ def test_crypto_box_beforenm(pk, sk):
                           (nonce24(), bad(), sk()),
                           (nonce24(), pk(),  bad())],
                          ids=['invalid_nonce', 'invalid_pk', 'invalid_sk'])
-def test_crypto_box_invalid(nonce24, pk, sk):
+def test_crypto_box_assert(nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box(
             msg=b'foo',
@@ -225,7 +225,7 @@ def test_crypto_box(sk, pk, nonce24):
                          [(bad(),     k()),
                           (nonce24(), bad())],
                          ids=['invalid_nonce', 'invalid_k'])
-def test_crypto_box_afternm_invalid_nonce(nonce24, k):
+def test_crypto_box_afternm_assert(nonce24, k):
     with pytest.raises(AssertionError):
         crypto_box_afternm(
             msg=b'foo',
@@ -248,7 +248,7 @@ def test_crypto_box_afternm(nonce24, k):
                           (nonce24(), bad(), sk()),
                           (nonce24(), pk(),  bad())],
                          ids=['invalid_nonce', 'invalid_pk', 'invalid_sk'])
-def test_crypto_box_open_invalid(nonce24, pk, sk):
+def test_crypto_box_open_assert(nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_open(
             c=b'x' * 100,
@@ -288,7 +288,7 @@ def test_crypto_box_open(nonce24, pk, sk):
                          [(bad(),     k()),
                           (nonce24(), bad())],
                          ids=['invalid_nonce', 'invalid_k'])
-def test_crypto_box_open_afternm_invalid(nonce24, k):
+def test_crypto_box_open_afternm_assert(nonce24, k):
     with pytest.raises(AssertionError):
         crypto_box_open_afternm(
             c=b'x' * 100,
@@ -331,7 +331,7 @@ def test_crypto_box_seal(pk):
                          [(bad(), sk()),
                           (pk(),  bad())],
                          ids=['invalid_pk', 'invalid_sk'])
-def test_crypto_box_seal_open_invalid(pk, sk):
+def test_crypto_box_seal_open_assert(pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_seal_open(
             c=b'',
@@ -340,7 +340,13 @@ def test_crypto_box_seal_open_invalid(pk, sk):
         )
 
 
-# TODO: test_crypto_box_seal_open_failure
+def test_crypto_box_seal_open_failure(pk, sk):
+    with pytest.raises(ValueError):
+        crypto_box_seal_open(
+            c=b'x' * 100,
+            pk=pk,
+            sk=sk,
+        )
 
 
 def test_crypto_box_seal_open(pk, sk):
@@ -361,7 +367,7 @@ def test_crypto_box_seal_open(pk, sk):
                           (nonce24(), bad(), sk()),
                           (nonce24(), pk(),  bad())],
                          ids=['invalid_nonce', 'invalid_pk', 'invalid_sk'])
-def test_crypto_box_detached_invalid(nonce24, pk, sk):
+def test_crypto_box_detached_assert(nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_detached(
             msg=b'foo',
@@ -389,7 +395,7 @@ def test_crypto_box_detached(nonce24, pk, sk):
                           (mac16(), nonce24(), pk(),  bad())],
                          ids=['invalid_mac', 'invalid_nonce', 'invalid_pk',
                               'invalid_sk'])
-def test_crypto_box_open_detached_invalid(mac16, nonce24, pk, sk):
+def test_crypto_box_open_detached_assert(mac16, nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_open_detached(
             c=b'',
@@ -400,7 +406,15 @@ def test_crypto_box_open_detached_invalid(mac16, nonce24, pk, sk):
         )
 
 
-# TODO: test_crypto_box_open_detached_failure
+def test_crypto_box_open_detached_failure(mac16, nonce24, pk, sk):
+    with pytest.raises(ValueError):
+        crypto_box_open_detached(
+            c=b'x' * 100,
+            mac=mac16,
+            nonce=nonce24,
+            pk=pk,
+            sk=sk,
+        )
 
 
 def test_crypto_box_open_detached(nonce24, pk, sk):
@@ -424,7 +438,7 @@ def test_crypto_box_open_detached(nonce24, pk, sk):
                          [(bad(),     key32()),
                           (nonce24(), bad())],
                          ids=['invalid_nonce', 'invalid_key'])
-def test_crypto_secretbox_invalid(nonce24, key32):
+def test_crypto_secretbox_assert(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox(
             msg=b'foo',
@@ -446,7 +460,7 @@ def test_crypto_secretbox(nonce24, key32):
                          [(bad(),     key32()),
                           (nonce24(), bad())],
                          ids=['invalid_nonce', 'invalid_key'])
-def test_crypto_secretbox_open_invalid(nonce24, key32):
+def test_crypto_secretbox_open_assert(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox_open(
             c=b'',
@@ -454,7 +468,14 @@ def test_crypto_secretbox_open_invalid(nonce24, key32):
             k=key32,
         )
 
-# TODO: test_crypto_secretbox_open_failure
+
+def test_crypto_secretbox_open_failure(nonce24, key32):
+    with pytest.raises(ValueError):
+        crypto_secretbox_open(
+            c=b'x' * 100,
+            nonce=nonce24,
+            k=key32,
+        )
 
 
 def test_crypto_secretbox_open(nonce24, key32):
@@ -475,7 +496,7 @@ def test_crypto_secretbox_open(nonce24, key32):
                          [(bad(),     key32()),
                           (nonce24(), bad())],
                          ids=['invalid_nonce', 'invalid_key'])
-def test_crypto_secretbox_detached_invalid(nonce24, key32):
+def test_crypto_secretbox_detached_assert(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox_detached(
             msg=b'foo',
@@ -499,7 +520,7 @@ def test_crypto_secretbox_detached(nonce24, key32):
                           (mac16(), bad(),     key32()),
                           (mac16(), nonce24(), bad())],
                          ids=['invalid_mac', 'invalid_nonce', 'invalid_key'])
-def test_crypto_secretbox_open_detached_invalid(mac16, nonce24, key32):
+def test_crypto_secretbox_open_detached_assert(mac16, nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox_open_detached(
             c=b'',
