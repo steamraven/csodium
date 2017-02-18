@@ -10,8 +10,6 @@ from csodium import (
     SODIUM_VERSION,
     crypto_box,
     crypto_box_BEFORENMBYTES,
-    crypto_box_MACBYTES,
-    crypto_box_NONCEBYTES,
     crypto_box_PUBLICKEYBYTES,
     crypto_box_SECRETKEYBYTES,
     crypto_box_SEEDBYTES,
@@ -36,9 +34,6 @@ from csodium import (
     crypto_generichash_init,
     crypto_generichash_update,
     crypto_generichash_final,
-    crypto_generichash_blake2b_KEYBYTES,
-    crypto_generichash_blake2b_SALTBYTES,
-    crypto_generichash_blake2b_PERSONALBYTES,
     crypto_generichash_blake2b_BYTES,
     crypto_generichash_blake2b_salt_personal,
     crypto_generichash_blake2b_init_salt_personal,
@@ -66,12 +61,19 @@ from csodium import (
     crypto_stream_salsa20,
     crypto_stream_salsa20_xor,
     crypto_stream_salsa20_xor_ic,
-    crypto_stream_salsa20_NONCEBYTES,
     crypto_core_hsalsa20_INPUTBYTES,
-    crypto_core_hsalsa20_CONSTBYTES,
     crypto_core_hsalsa20_OUTPUTBYTES,
     crypto_core_hsalsa20,
 )
+
+
+def optional_kw(**kwargs):
+    return dict((i for i in kwargs.items() if i[1] is not None))
+
+
+@pytest.fixture
+def bad():
+    return b''
 
 
 @pytest.fixture
@@ -87,18 +89,24 @@ def sk():
 
 
 @pytest.fixture
-def nonce():
-    return b'x' * crypto_box_NONCEBYTES
+def nonce8():
+    return b'x' * 8
 
 
 @pytest.fixture
-def k(pk, sk):
+def nonce24():
+    return b'x' * 24
+
+
+@pytest.fixture
+def k():
+    pk, sk = crypto_box_seed_keypair(b'x' * crypto_box_SEEDBYTES)
     return crypto_box_beforenm(pk=pk, sk=sk)
 
 
 @pytest.fixture
-def mac():
-    return b'x' * crypto_box_MACBYTES
+def mac16():
+    return b'x' * 16
 
 
 @pytest.fixture
@@ -107,18 +115,18 @@ def state():
 
 
 @pytest.fixture
-def key():
-    return b'x' * crypto_generichash_blake2b_KEYBYTES
+def key32():
+    return b'x' * 32
 
 
 @pytest.fixture
-def salt():
-    return b'x' * crypto_generichash_blake2b_SALTBYTES
+def salt16():
+    return b'x' * 16
 
 
 @pytest.fixture
-def personal():
-    return b'x' * crypto_generichash_blake2b_PERSONALBYTES
+def personal16():
+    return b'x' * 16
 
 
 @pytest.fixture
@@ -168,19 +176,15 @@ def test_crypto_box_seed_keypair():
     assert len(sk) == crypto_box_SECRETKEYBYTES
 
 
-def test_crypto_box_beforenm_invalid_pk(sk):
-    with pytest.raises(AssertionError):
-        crypto_box_beforenm(
-            pk=b'',
-            sk=sk,
-        )
-
-
-def test_crypto_box_beforenm_invalid_sk(pk):
+@pytest.mark.parametrize(" pk,    sk",
+                         [(bad(), sk()),
+                          (pk(),  bad())],
+                         ids=['invalid_pk', 'invalid_sk'])
+def test_crypto_box_beforenm_invalid(pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_beforenm(
             pk=pk,
-            sk=b'',
+            sk=sk,
         )
 
 
@@ -192,156 +196,116 @@ def test_crypto_box_beforenm(pk, sk):
     assert len(k) == crypto_box_BEFORENMBYTES
 
 
-def test_crypto_box_invalid_nonce(pk, sk):
+@pytest.mark.parametrize(" nonce24,   pk,    sk",
+                         [(bad(),     pk(),  sk()),
+                          (nonce24(), bad(), sk()),
+                          (nonce24(), pk(),  bad())],
+                         ids=['invalid_nonce', 'invalid_pk', 'invalid_sk'])
+def test_crypto_box_invalid(nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box(
             msg=b'foo',
-            nonce=b'',
+            nonce=nonce24,
             pk=pk,
             sk=sk,
         )
 
 
-def test_crypto_box_invalid_pk(nonce, sk):
-    with pytest.raises(AssertionError):
-        crypto_box(
-            msg=b'foo',
-            nonce=nonce,
-            pk=b'',
-            sk=sk,
-        )
-
-
-def test_crypto_box_invalid_sk(nonce, pk):
-    with pytest.raises(AssertionError):
-        crypto_box(
-            msg=b'foo',
-            nonce=nonce,
-            pk=pk,
-            sk=b'',
-        )
-
-
-def test_crypto_box(nonce, pk, sk):
+def test_crypto_box(sk, pk, nonce24):
     c = crypto_box(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         pk=pk,
         sk=sk,
     )
     assert isinstance(c, binary_type)
 
 
-def test_crypto_box_afternm_invalid_nonce(k):
+@pytest.mark.parametrize(" nonce24,   k",
+                         [(bad(),     k()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_k'])
+def test_crypto_box_afternm_invalid_nonce(nonce24, k):
     with pytest.raises(AssertionError):
         crypto_box_afternm(
             msg=b'foo',
-            nonce=b'',
+            nonce=nonce24,
             k=k,
         )
 
 
-def test_crypto_box_afternm_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_box_afternm(
-            msg=b'foo',
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_box_afternm(nonce, k):
+def test_crypto_box_afternm(nonce24, k):
     c = crypto_box_afternm(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         k=k,
     )
     assert isinstance(c, binary_type)
 
 
-def test_crypto_box_open_invalid_nonce(pk, sk):
+@pytest.mark.parametrize(" nonce24,   pk,    sk",
+                         [(bad(),     pk(),  sk()),
+                          (nonce24(), bad(), sk()),
+                          (nonce24(), pk(),  bad())],
+                         ids=['invalid_nonce', 'invalid_pk', 'invalid_sk'])
+def test_crypto_box_open_invalid(nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_open(
             c=b'x' * 100,
-            nonce=b'',
+            nonce=nonce24,
             pk=pk,
             sk=sk,
         )
 
 
-def test_crypto_box_open_invalid_pk(nonce, sk):
-    with pytest.raises(AssertionError):
-        crypto_box_open(
-            c=b'x' * 100,
-            nonce=nonce,
-            pk=b'',
-            sk=sk,
-        )
-
-
-def test_crypto_box_open_invalid_sk(nonce, pk):
-    with pytest.raises(AssertionError):
-        crypto_box_open(
-            c=b'x' * 100,
-            nonce=nonce,
-            pk=pk,
-            sk=b'',
-        )
-
-
-def test_crypto_box_open_failure(nonce, pk, sk):
+def test_crypto_box_open_failure(nonce24, pk, sk):
     with pytest.raises(ValueError):
         crypto_box_open(
             c=b'x' * 100,
-            nonce=nonce,
+            nonce=nonce24,
             pk=pk,
             sk=sk,
         )
 
 
-def test_crypto_box_open(nonce, pk, sk):
+def test_crypto_box_open(nonce24, pk, sk):
     c = crypto_box(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         pk=pk,
         sk=sk,
     )
     msg = crypto_box_open(
         c=c,
-        nonce=nonce,
+        nonce=nonce24,
         pk=pk,
         sk=sk,
     )
     assert msg == b'foo'
 
 
-def test_crypto_box_open_afternm_invalid_nonce(k):
+@pytest.mark.parametrize(" nonce24,   k",
+                         [(bad(),     k()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_k'])
+def test_crypto_box_open_afternm_invalid(nonce24, k):
     with pytest.raises(AssertionError):
         crypto_box_open_afternm(
             c=b'x' * 100,
-            nonce=b'',
+            nonce=nonce24,
             k=k,
         )
 
 
-def test_crypto_box_open_afternm_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_box_open_afternm(
-            c=b'x' * 100,
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_box_open_afternm(nonce, k):
+def test_crypto_box_open_afternm(nonce24, k):
     c = crypto_box_afternm(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         k=k,
     )
     msg = crypto_box_open_afternm(
         c=c,
-        nonce=nonce,
+        nonce=nonce24,
         k=k,
     )
     assert msg == b'foo'
@@ -363,22 +327,20 @@ def test_crypto_box_seal(pk):
     assert isinstance(c, binary_type)
 
 
-def test_crypto_box_seal_open_invalid_pk(sk):
-    with pytest.raises(AssertionError):
-        crypto_box_seal_open(
-            c=b'',
-            pk=b'',
-            sk=sk,
-        )
-
-
-def test_crypto_box_seal_open_invalid_sk(pk):
+@pytest.mark.parametrize(" pk,    sk",
+                         [(bad(), sk()),
+                          (pk(),  bad())],
+                         ids=['invalid_pk', 'invalid_sk'])
+def test_crypto_box_seal_open_invalid(pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_seal_open(
             c=b'',
             pk=pk,
-            sk=b'',
+            sk=sk,
         )
+
+
+# TODO: test_crypto_box_seal_open_failure
 
 
 def test_crypto_box_seal_open(pk, sk):
@@ -394,40 +356,25 @@ def test_crypto_box_seal_open(pk, sk):
     assert msg == b'foo'
 
 
-def test_crypto_box_detached_invalid_nonce(pk, sk):
+@pytest.mark.parametrize(" nonce24,   pk,    sk",
+                         [(bad(),     pk(),  sk()),
+                          (nonce24(), bad(), sk()),
+                          (nonce24(), pk(),  bad())],
+                         ids=['invalid_nonce', 'invalid_pk', 'invalid_sk'])
+def test_crypto_box_detached_invalid(nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_detached(
             msg=b'foo',
-            nonce=b'',
+            nonce=nonce24,
             pk=pk,
             sk=sk,
         )
 
 
-def test_crypto_box_detached_invalid_pk(nonce, sk):
-    with pytest.raises(AssertionError):
-        crypto_box_detached(
-            msg=b'foo',
-            nonce=nonce,
-            pk=b'',
-            sk=sk,
-        )
-
-
-def test_crypto_box_detached_invalid_sk(nonce, pk):
-    with pytest.raises(AssertionError):
-        crypto_box_detached(
-            msg=b'foo',
-            nonce=nonce,
-            pk=pk,
-            sk=b'',
-        )
-
-
-def test_crypto_box_detached(nonce, pk, sk):
+def test_crypto_box_detached(nonce24, pk, sk):
     c, mac = crypto_box_detached(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         pk=pk,
         sk=sk,
     )
@@ -435,288 +382,208 @@ def test_crypto_box_detached(nonce, pk, sk):
     assert isinstance(mac, binary_type)
 
 
-def test_crypto_box_open_detached_invalid_mac(nonce, pk, sk):
+@pytest.mark.parametrize(" mac16,   nonce24,   pk,    sk",
+                         [(bad(),   nonce24(), pk(),  sk()),
+                          (mac16(), bad(),     pk(),  sk()),
+                          (mac16(), nonce24(), bad(), sk()),
+                          (mac16(), nonce24(), pk(),  bad())],
+                         ids=['invalid_mac', 'invalid_nonce', 'invalid_pk',
+                              'invalid_sk'])
+def test_crypto_box_open_detached_invalid(mac16, nonce24, pk, sk):
     with pytest.raises(AssertionError):
         crypto_box_open_detached(
             c=b'',
-            mac=b'',
-            nonce=nonce,
+            mac=mac16,
+            nonce=nonce24,
             pk=pk,
             sk=sk,
         )
 
 
-def test_crypto_box_open_detached_invalid_nonce(mac, pk, sk):
-    with pytest.raises(AssertionError):
-        crypto_box_open_detached(
-            c=b'',
-            mac=mac,
-            nonce=b'',
-            pk=pk,
-            sk=sk,
-        )
+# TODO: test_crypto_box_open_detached_failure
 
 
-def test_crypto_box_open_detached_invalid_pk(mac, nonce, sk):
-    with pytest.raises(AssertionError):
-        crypto_box_open_detached(
-            c=b'',
-            mac=mac,
-            nonce=nonce,
-            pk=b'',
-            sk=sk,
-        )
-
-
-def test_crypto_box_open_detached_invalid_sk(mac, nonce, pk):
-    with pytest.raises(AssertionError):
-        crypto_box_open_detached(
-            c=b'',
-            mac=mac,
-            nonce=nonce,
-            pk=pk,
-            sk=b'',
-        )
-
-
-def test_crypto_box_open_detached(nonce, pk, sk):
+def test_crypto_box_open_detached(nonce24, pk, sk):
     c, mac = crypto_box_detached(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         pk=pk,
         sk=sk,
     )
     msg = crypto_box_open_detached(
         c=c,
         mac=mac,
-        nonce=nonce,
+        nonce=nonce24,
         pk=pk,
         sk=sk,
     )
     assert msg == b'foo'
 
 
-def test_crypto_secretbox_invalid_nonce(k):
+@pytest.mark.parametrize(" nonce24,   key32",
+                         [(bad(),     key32()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_secretbox_invalid(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox(
             msg=b'foo',
-            nonce=b'',
-            k=k,
+            nonce=nonce24,
+            k=key32,
         )
 
 
-def test_crypto_secretbox_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_secretbox(
-            msg=b'foo',
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_secretbox(nonce, k):
+def test_crypto_secretbox(nonce24, key32):
     c = crypto_secretbox(
         msg=b'foo',
-        nonce=nonce,
-        k=k,
+        nonce=nonce24,
+        k=key32,
     )
     assert isinstance(c, binary_type)
 
 
-def test_crypto_secretbox_open_invalid_nonce(k):
+@pytest.mark.parametrize(" nonce24,   key32",
+                         [(bad(),     key32()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_secretbox_open_invalid(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox_open(
             c=b'',
-            nonce=b'',
-            k=k,
+            nonce=nonce24,
+            k=key32,
         )
 
-
-def test_crypto_secretbox_open_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_secretbox_open(
-            c=b'',
-            nonce=nonce,
-            k=b'',
-        )
+# TODO: test_crypto_secretbox_open_failure
 
 
-def test_crypto_secretbox_open(nonce, k):
+def test_crypto_secretbox_open(nonce24, key32):
     c = crypto_secretbox(
         msg=b'foo',
-        nonce=nonce,
-        k=k,
+        nonce=nonce24,
+        k=key32,
     )
     msg = crypto_secretbox_open(
         c=c,
-        nonce=nonce,
-        k=k,
+        nonce=nonce24,
+        k=key32,
     )
     assert msg == b'foo'
 
 
-def test_crypto_secretbox_detached_invalid_nonce(k):
+@pytest.mark.parametrize(" nonce24,   key32",
+                         [(bad(),     key32()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_secretbox_detached_invalid(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox_detached(
             msg=b'foo',
-            nonce=b'',
-            k=k,
+            nonce=nonce24,
+            k=key32,
         )
 
 
-def test_crypto_secretbox_detached_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_secretbox_detached(
-            msg=b'foo',
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_secretbox_detached(nonce, k):
+def test_crypto_secretbox_detached(nonce24, key32):
     c, mac = crypto_secretbox_detached(
         msg=b'foo',
-        nonce=nonce,
-        k=k,
+        nonce=nonce24,
+        k=key32,
     )
     assert isinstance(c, binary_type)
     assert isinstance(mac, binary_type)
 
 
-def test_crypto_secretbox_open_detached_invalid_mac(nonce, k):
+@pytest.mark.parametrize(" mac16,   nonce24,   key32",
+                         [(bad(),   nonce24(), key32()),
+                          (mac16(), bad(),     key32()),
+                          (mac16(), nonce24(), bad())],
+                         ids=['invalid_mac', 'invalid_nonce', 'invalid_key'])
+def test_crypto_secretbox_open_detached_invalid(mac16, nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_secretbox_open_detached(
             c=b'',
-            mac=b'',
-            nonce=nonce,
-            k=k,
+            mac=mac16,
+            nonce=nonce24,
+            k=key32,
         )
 
 
-def test_crypto_secretbox_open_detached_invalid_nonce(mac, k):
-    with pytest.raises(AssertionError):
+def test_crypto_secretbox_open_detached_failure(mac16, nonce24, key32):
+    with pytest.raises(ValueError):
         crypto_secretbox_open_detached(
             c=b'',
-            mac=mac,
-            nonce=b'',
-            k=k,
+            mac=mac16,
+            nonce=nonce24,
+            k=key32,
         )
 
 
-def test_crypto_secretbox_open_detached_invalid_k(mac, nonce):
-    with pytest.raises(AssertionError):
-        crypto_secretbox_open_detached(
-            c=b'',
-            mac=mac,
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_secretbox_open_detached(nonce, k):
+def test_crypto_secretbox_open_detached(nonce24, key32):
     c, mac = crypto_secretbox_detached(
         msg=b'foo',
-        nonce=nonce,
-        k=k,
+        nonce=nonce24,
+        k=key32,
     )
     msg = crypto_secretbox_open_detached(
         c=c,
         mac=mac,
-        nonce=nonce,
-        k=k,
+        nonce=nonce24,
+        k=key32,
     )
     assert msg == b'foo'
 
 
-def test_crypto_generichash_key_too_short():
+@pytest.mark.parametrize(" key32,   outlen",
+                         [(b'1',    None),
+                          (key32(), 1)],
+                         ids=['key_too_short', 'invalid_outlen'])
+def test_crypto_generichash_assert(key32, outlen):
     with pytest.raises(AssertionError):
         crypto_generichash(
-            in_=None,
-            key=b'1',
+            in_=b'x',
+            key=key32,
+            **optional_kw(outlen=outlen)
         )
 
 
-def test_crypto_generichash_invalid_outlen():
-    with pytest.raises(AssertionError):
-        crypto_generichash(
-            in_=None,
-            key=None,
-            outlen=1,
-        )
-
-
-def test_crypto_generichash_null_key():
+@pytest.mark.parametrize(" in_,  key32,   outlen",
+                         [(b'x', None,    None),
+                          (None, key32(), None),
+                          (b'x', key32(), None),
+                          (b'x', key32(), 35)],
+                         ids=['null_key', 'null_in', 'normal', 'outlen'])
+def test_crypto_generichash(in_, key32, outlen):
     out = crypto_generichash(
-        in_=b'x',
-        key=None,
+        in_=in_,
+        key=key32,
+        **optional_kw(outlen=outlen)
     )
     assert isinstance(out, binary_type)
-    assert len(out) == crypto_generichash_BYTES
+    assert len(out) == crypto_generichash_BYTES if outlen is None else outlen
 
 
-def test_crypto_generichash_null_in(key):
-    out = crypto_generichash(
-        in_=None,
-        key=key,
-    )
-    assert isinstance(out, binary_type)
-    assert len(out) == crypto_generichash_BYTES
-
-
-def test_crypto_generichash(key):
-    out = crypto_generichash(
-        in_=b'x',
-        key=key,
-    )
-    assert isinstance(out, binary_type)
-    assert len(out) == crypto_generichash_BYTES
-
-
-def test_crypto_generichash_outlen(key):
-    out = crypto_generichash(
-        in_=b'x',
-        key=key,
-        outlen=35,
-    )
-    assert isinstance(out, binary_type)
-    assert len(out) == 35
-
-
-def test_crypto_generichash_init_key_too_short():
+@pytest.mark.parametrize(" key32,   outlen",
+                         [(bad(),    None),
+                          (key32(), 1)],
+                         ids=['key_too_short', 'invalid_outlen'])
+def test_crypto_generichash_init_assert(key32, outlen):
     with pytest.raises(AssertionError):
         crypto_generichash_init(
-            key=b'1',
+            key=key32,
+            **optional_kw(outlen=outlen)
         )
 
 
-def test_crypto_generichash_init_invalid_outlen():
-    with pytest.raises(AssertionError):
-        crypto_generichash_init(
-            key=None,
-            outlen=1,
-        )
-
-
-def test_crypto_generichash_init_null_key():
+@pytest.mark.parametrize(" key32,   outlen",
+                         [(None,    None),
+                          (key32(), None),
+                          (key32(), 35)],
+                         ids=['null_key', 'normal', 'outlen'])
+def test_crypto_generichash_init(key32, outlen):
     out = crypto_generichash_init(
-        key=None,
-    )
-    assert isinstance(out, bytearray)
-    assert len(out) == crypto_generichash_STATEBYTES
-
-
-def test_crypto_generichash_init(key):
-    out = crypto_generichash_init(
-        key=key,
-    )
-    assert isinstance(out, bytearray)
-    assert len(out) == crypto_generichash_STATEBYTES
-
-
-def test_crypto_generichash_init_outlen(key):
-    out = crypto_generichash_init(
-        key=key,
-        outlen=35,
+        key=key32,
+        **optional_kw(outlen=outlen)
     )
     assert isinstance(out, bytearray)
     assert len(out) == crypto_generichash_STATEBYTES
@@ -737,180 +604,118 @@ def test_crypto_generichash_update(state):
     )
 
 
-def test_crypto_generichash_final_state_too_short():
-    with pytest.raises(AssertionError):
-        crypto_generichash_final(
-            state=b'1',
-        )
-
-
-def test_crypto_generichash_final_invalid_outlen(state):
+@pytest.mark.parametrize(" state,   outlen",
+                         [(bad(),    None),
+                          (state(), 1)],
+                         ids=['state_too_short', 'invalid_outlen'])
+def test_crypto_generichash_final_assert(state, outlen):
     with pytest.raises(AssertionError):
         crypto_generichash_final(
             state=state,
-            outlen=1,
+            **optional_kw(outlen=outlen)
         )
 
 
-def test_crypto_generichash_final(state):
+@pytest.mark.parametrize(" outlen",
+                         [None,
+                          35],
+                         ids=['normal', 'outlen'])
+def test_crypto_generichash_final(state, outlen):
     out = crypto_generichash_final(
         state=state,
+        **optional_kw(outlen=outlen)
     )
     assert isinstance(out, binary_type)
-    assert len(out) == crypto_generichash_BYTES
+    assert len(out) == crypto_generichash_BYTES if outlen is None else outlen
 
 
-def test_crypto_generichash_final_outlen(state):
-    out = crypto_generichash_final(
-        state=state,
-        outlen=35,
-    )
-    assert isinstance(out, binary_type)
-    assert len(out) == 35
-
-
-def test_crypto_generichash_blake2b_salt_key_too_short(salt):
+@pytest.mark.parametrize(" key32,   salt16,   personal16,   outlen",
+                         [(bad(),   salt16(), None,         None),
+                          (key32(), bad(),    None,         None),
+                          (key32(), salt16(), bad(),        None),
+                          (key32(), salt16(), personal16(), 1)],
+                         ids=['key_too_short', 'salt_too_short',
+                              'personal_too_short', 'invalid_outlen'])
+def test_crypto_generichash_blake2b_salt_assert(
+    key32,
+    salt16,
+    personal16,
+    outlen
+):
     with pytest.raises(AssertionError):
         crypto_generichash_blake2b_salt_personal(
             in_=None,
-            key=b'1',
-            salt=salt,
-            personal=None,
+            key=key32,
+            salt=salt16,
+            **optional_kw(
+                personal=personal16,
+                outlen=outlen
+            )
         )
 
 
-def test_crypto_generichash_blake2b_salt_salt_too_short(key):
-    with pytest.raises(AssertionError):
-        crypto_generichash_blake2b_salt_personal(
-            in_=None,
-            key=key,
-            salt=b'x',
-            personal=None,
-        )
-
-
-def test_crypto_generichash_blake2b_salt_personal_too_short(key, salt):
-    with pytest.raises(AssertionError):
-        crypto_generichash_blake2b_salt_personal(
-            in_=None,
-            key=key,
-            salt=salt,
-            personal=b'x',
-        )
-
-
-def test_crypto_generichash_blake2b_salt_invalid_outlen(key, salt, personal):
-    with pytest.raises(AssertionError):
-        crypto_generichash_blake2b_salt_personal(
-            in_=None,
-            key=key,
-            salt=salt,
-            personal=personal,
-            outlen=1,
-        )
-
-
-def test_crypto_generichash_blake2b_salt_personal(key, salt, personal):
+@pytest.mark.parametrize(" personal16,   outlen",
+                         [(personal16(), None),
+                          (None,         None),
+                          (None,         35)],
+                         ids=['personal', 'normal', 'outlen'])
+def test_crypto_generichash_blake2b_salt(key32, salt16, personal16, outlen):
     out = crypto_generichash_blake2b_salt_personal(
         in_=None,
-        key=key,
-        salt=salt,
-        personal=personal,
+        key=key32,
+        salt=salt16,
+        **optional_kw(
+            personal=personal16,
+            outlen=outlen
+        )
     )
     assert isinstance(out, binary_type)
-    assert len(out) == crypto_generichash_blake2b_BYTES
+    assert len(out) == (crypto_generichash_blake2b_BYTES
+                        if outlen is None else outlen)
 
 
-def test_crypto_generichash_blake2b_salt(key, salt):
-    out = crypto_generichash_blake2b_salt_personal(
-        in_=None,
-        key=key,
-        salt=salt,
-        personal=None,
-    )
-    assert isinstance(out, binary_type)
-    assert len(out) == crypto_generichash_blake2b_BYTES
-
-
-def test_crypto_generichash_blake2b_salt_outlen(key, salt):
-    out = crypto_generichash_blake2b_salt_personal(
-        in_=None,
-        key=key,
-        salt=salt,
-        personal=None,
-        outlen=35,
-    )
-    assert isinstance(out, binary_type)
-    assert len(out) == 35
-
-
-def test_crypto_generichash_blake2b_init_salt_key_too_short(salt):
-    with pytest.raises(AssertionError):
-        crypto_generichash_blake2b_init_salt_personal(
-            key=b'1',
-            salt=salt,
-            personal=None,
-        )
-
-
-def test_crypto_generichash_blake2b_init_salt_salt_too_short(key):
-    with pytest.raises(AssertionError):
-        crypto_generichash_blake2b_init_salt_personal(
-            key=key,
-            salt=b'x',
-            personal=None,
-        )
-
-
-def test_crypto_generichash_blake2b_init_salt_personal_too_short(key, salt):
-    with pytest.raises(AssertionError):
-        crypto_generichash_blake2b_init_salt_personal(
-            key=key,
-            salt=salt,
-            personal=b'x',
-        )
-
-
-def test_crypto_generichash_blake2b_init_salt_invalid_outlen(
-    key,
-    salt,
-    personal
+@pytest.mark.parametrize(" key32,   salt16,   personal16,   outlen",
+                         [(bad(),   salt16(), None,         None),
+                          (key32(), bad(),    None,         None),
+                          (key32(), salt16(), bad(),        None),
+                          (key32(), salt16(), personal16(), 1)],
+                         ids=['key_too_short', 'salt_too_short',
+                              'personal_too_short', 'invalid_outlen'])
+def test_crypto_generichash_blake2b_init_salt_assert(
+    key32,
+    salt16,
+    personal16,
+    outlen
 ):
     with pytest.raises(AssertionError):
         crypto_generichash_blake2b_init_salt_personal(
-            key=key,
-            salt=salt,
-            personal=personal,
-            outlen=1,
+            key=key32,
+            salt=salt16,
+            **optional_kw(
+                personal=personal16,
+                outlen=outlen
+            )
         )
 
 
-def test_crypto_generichash_blake2b_init_salt_personal(key, salt, personal):
+@pytest.mark.parametrize(" personal16,   outlen",
+                         [(None,         None),
+                          (personal16(), None),
+                          (None,         35)],
+                         ids=['normal', 'personal', 'outlen'])
+def test_crypto_generichash_blake2b_init_salt(
+    key32,
+    salt16,
+    personal16,
+    outlen
+):
     out = crypto_generichash_blake2b_init_salt_personal(
-        key=key,
-        salt=salt,
-        personal=personal,
-    )
-    assert isinstance(out, bytearray)
-    assert len(out) == crypto_generichash_STATEBYTES
-
-
-def test_crypto_generichash_blake2b_init_salt(key, salt):
-    out = crypto_generichash_blake2b_init_salt_personal(
-        key=key,
-        salt=salt,
-        personal=None,
-    )
-    assert isinstance(out, bytearray)
-    assert len(out) == crypto_generichash_STATEBYTES
-
-
-def test_crypto_generichash_blake2b_init_salt_outlen(key, salt):
-    out = crypto_generichash_blake2b_init_salt_personal(
-        key=key,
-        salt=salt,
-        personal=None,
-        outlen=35,
+        key=key32,
+        salt=salt16,
+        **optional_kw(
+            personal=personal16,
+            outlen=outlen
+        )
     )
     assert isinstance(out, bytearray)
     assert len(out) == crypto_generichash_STATEBYTES
@@ -933,7 +738,7 @@ def test_crypto_sign_seed_keypair():
     assert len(sk) == crypto_sign_SECRETKEYBYTES
 
 
-def test_crypto_sign_invalid_pk():
+def test_crypto_sign_invalid_sk():
     with pytest.raises(AssertionError):
         crypto_sign(
             msg=b'foo',
@@ -996,21 +801,16 @@ def test_crypto_sign_detached(sign_sk):
     assert len(sig) == crypto_sign_BYTES
 
 
-def test_crypto_sign_verify_detached_invalid_sig(sign_pk):
-    with pytest.raises(AssertionError):
-        crypto_sign_verify_detached(
-            msg=b'',
-            sig=b'',
-            pk=sign_pk,
-        )
-
-
-def test_crypto_sign_verify_detached_invalid_pk(sig):
+@pytest.mark.parametrize(' sig,   sign_pk',
+                         [(bad(), sign_pk()),
+                          (sig(), bad())],
+                         ids=['invalid_sig', 'invalid_pk'])
+def test_crypto_sign_verify_detached_assert(sig, sign_pk):
     with pytest.raises(AssertionError):
         crypto_sign_verify_detached(
             msg=b'',
             sig=sig,
-            pk=b'',
+            pk=sign_pk,
         )
 
 
@@ -1085,235 +885,187 @@ def test_crypto_sign_ed25519_sk_to_pk():
     assert len(pk) == crypto_sign_ed25519_PUBLICKEYBYTES
 
 
-def test_crypto_stream_invalid_nonce(key):
+@pytest.mark.parametrize(' nonce24,   key32',
+                         [(bad(),     key32()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_stream_assert(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_stream(
             clen=10,
-            nonce=b'',
-            k=key,
+            nonce=nonce24,
+            k=key32,
         )
 
 
-def test_crypto_stream_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_stream(
-            clen=10,
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_stream(nonce, key):
+def test_crypto_stream(nonce24, key32):
     c = crypto_stream(
         clen=10,
-        nonce=nonce,
-        k=key,
+        nonce=nonce24,
+        k=key32,
     )
     assert isinstance(c, binary_type)
     assert len(c) == 10
 
 
-def test_crypto_stream_xor_invalid_nonce(key):
+@pytest.mark.parametrize(' nonce24,   key32',
+                         [(bad(),     key32()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_stream_xor_assert(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_stream_xor(
             msg=b'hello',
-            nonce=b'',
-            k=key,
+            nonce=nonce24,
+            k=key32,
         )
 
 
-def test_crypto_stream_xor_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_stream_xor(
-            msg=b'hello',
-            nonce=nonce,
-            k=b'',
-        )
-
-
-def test_crypto_stream_xor(nonce, key):
+def test_crypto_stream_xor(nonce24, key32):
     c = crypto_stream_xor(
         msg=b'foo',
-        nonce=nonce,
-        k=key,
+        nonce=nonce24,
+        k=key32,
     )
     msg = crypto_stream_xor(
         msg=c,
-        nonce=nonce,
-        k=key,
+        nonce=nonce24,
+        k=key32,
     )
     assert msg == b'foo'
 
 
-def test_crypto_stream_xsalsa20_xor_ic_invalid_nonce(key):
+@pytest.mark.parametrize(' nonce24,   key32',
+                         [(bad(),     key32()),
+                          (nonce24(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_stream_xsalsa20_xor_ic_assert(nonce24, key32):
     with pytest.raises(AssertionError):
         crypto_stream_xsalsa20_xor_ic(
             msg=b'hello',
-            nonce=b'',
+            nonce=nonce24,
             ic=0,
-            k=key,
+            k=key32,
         )
 
 
-def test_crypto_stream_xsalsa20_xor_ic_invalid_k(nonce):
-    with pytest.raises(AssertionError):
-        crypto_stream_xsalsa20_xor_ic(
-            msg=b'hello',
-            nonce=nonce,
-            ic=0,
-            k=b'',
-        )
-
-
-def test_crypto_stream_xsalsa20_xor_ic(nonce, key):
+def test_crypto_stream_xsalsa20_xor_ic(nonce24, key32):
     c = crypto_stream_xsalsa20_xor_ic(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce24,
         ic=0,
-        k=key,
+        k=key32,
     )
     msg = crypto_stream_xsalsa20_xor_ic(
         msg=c,
-        nonce=nonce,
+        nonce=nonce24,
         ic=0,
-        k=key,
+        k=key32,
     )
     assert msg == b'foo'
 
 
-def test_crypto_stream_salsa20_invalid_nonce(key):
+@pytest.mark.parametrize(' nonce8,   key32',
+                         [(bad(),    key32()),
+                          (nonce8(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_stream_salsa20_invalid_nonce(nonce8, key32):
     with pytest.raises(AssertionError):
         crypto_stream_salsa20(
             clen=10,
-            nonce=b'',
-            k=key,
+            nonce=nonce8,
+            k=key32,
         )
 
 
-def test_crypto_stream_salsa20_invalid_k():
-    with pytest.raises(AssertionError):
-        crypto_stream_salsa20(
-            clen=10,
-            nonce=b'x' * crypto_stream_salsa20_NONCEBYTES,
-            k=b'',
-        )
-
-
-def test_crypto_stream_salsa20(key):
-    nonce = b'x' * crypto_stream_salsa20_NONCEBYTES
+def test_crypto_stream_salsa20(nonce8, key32):
     c = crypto_stream_salsa20(
         clen=10,
-        nonce=nonce,
-        k=key,
+        nonce=nonce8,
+        k=key32,
     )
 
     assert isinstance(c, binary_type)
     assert len(c) == 10
 
 
-def test_crypto_stream_salsa20_xor_invalid_nonce(key):
+@pytest.mark.parametrize(' nonce8,   key32',
+                         [(bad(),    key32()),
+                          (nonce8(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_stream_salsa20_xor_assert(nonce8, key32):
     with pytest.raises(AssertionError):
         crypto_stream_salsa20_xor(
             msg=b'hello',
-            nonce=b'',
-            k=key,
+            nonce=nonce8,
+            k=key32,
         )
 
 
-def test_crypto_stream_salsa20_xor_invalid_k():
-    with pytest.raises(AssertionError):
-        crypto_stream_salsa20_xor(
-            msg=b'hello',
-            nonce=b'x' * crypto_stream_salsa20_NONCEBYTES,
-            k=b'',
-        )
-
-
-def test_crypto_stream_salsa20_xor(key):
-    nonce = b'x' * crypto_stream_salsa20_NONCEBYTES
+def test_crypto_stream_salsa20_xor(nonce8, key32):
     c = crypto_stream_salsa20_xor(
         msg=b'foo',
-        nonce=nonce,
-        k=key,
+        nonce=nonce8,
+        k=key32,
     )
     msg = crypto_stream_salsa20_xor(
         msg=c,
-        nonce=nonce,
-        k=key,
+        nonce=nonce8,
+        k=key32,
     )
     assert msg == b'foo'
 
 
-def test_crypto_stream_salsa20_xor_ic_invalid_nonce(key):
+@pytest.mark.parametrize(' nonce8,   key32',
+                         [(bad(),    key32()),
+                          (nonce8(), bad())],
+                         ids=['invalid_nonce', 'invalid_key'])
+def test_crypto_stream_salsa20_xor_ic_assert(nonce8, key32):
     with pytest.raises(AssertionError):
         crypto_stream_salsa20_xor_ic(
             msg=b'hello',
-            nonce=b'',
+            nonce=nonce8,
             ic=0,
-            k=key,
+            k=key32,
         )
 
 
-def test_crypto_stream_salsa20_xor_ic_invalid_k():
-    with pytest.raises(AssertionError):
-        crypto_stream_salsa20_xor_ic(
-            msg=b'hello',
-            nonce=b'x' * crypto_stream_salsa20_NONCEBYTES,
-            ic=0,
-            k=b'',
-        )
-
-
-def test_crypto_stream_salsa20_xor_ic(key):
-    nonce = b'x' * crypto_stream_salsa20_NONCEBYTES
+def test_crypto_stream_salsa20_xor_ic(nonce8, key32):
     c = crypto_stream_salsa20_xor_ic(
         msg=b'foo',
-        nonce=nonce,
+        nonce=nonce8,
         ic=0,
-        k=key,
+        k=key32,
     )
     msg = crypto_stream_salsa20_xor_ic(
         msg=c,
-        nonce=nonce,
+        nonce=nonce8,
         ic=0,
-        k=key,
+        k=key32,
     )
     assert msg == b'foo'
 
 
-def test_crypto_core_hsalsa20_invalid_in(key):
+@pytest.mark.parametrize(' in_,      key32,   const',
+                         [(bad(),    key32(), salt16()),
+                          (salt16(), bad(),   salt16()),
+                          (salt16(), key32(), bad())],
+                         ids=['invalid_in', 'invalid_key', 'invalid_const'])
+def test_crypto_core_hsalsa20_assert(in_, key32, const):
     with pytest.raises(AssertionError):
         crypto_core_hsalsa20(
-            in_=b'',
-            k=key,
-            c=b'x' * crypto_core_hsalsa20_CONSTBYTES,
-        )
-
-
-def test_crypto_core_hsalsa20_invalid_k():
-    with pytest.raises(AssertionError):
-        crypto_core_hsalsa20(
-            in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
-            k=b'',
-            c=b'x' * crypto_core_hsalsa20_CONSTBYTES,
-        )
-
-
-def test_crypto_core_hsalsa20_invalid_c(key):
-    with pytest.raises(AssertionError):
-        crypto_core_hsalsa20(
-            in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
-            k=key,
-            c=b'',
+            in_=in_,
+            k=key32,
+            c=const,
         )
 
 
 @pytest.mark.skipif(SODIUM_VERSION < (1, 0, 9),
                     reason="requires sodium 1.0.9")
-def test_crypto_core_hsalsa20_null_c(key):
+def test_crypto_core_hsalsa20_null_c(key32):
     out = crypto_core_hsalsa20(
         in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
-        k=key,
+        k=key32,
         c=None,
     )
     assert isinstance(out, binary_type)
@@ -1322,20 +1074,20 @@ def test_crypto_core_hsalsa20_null_c(key):
 
 @pytest.mark.skipif(SODIUM_VERSION >= (1, 0, 9),
                     reason="fixed in sodium 1.0.9")
-def test_crypto_core_hsalsa20_invalid_null_c(key):
+def test_crypto_core_hsalsa20_invalid_null_c(key32):
     with pytest.raises(AssertionError):
         crypto_core_hsalsa20(
             in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
-            k=key,
+            k=key32,
             c=None,
         )
 
 
-def test_crypto_core_hsalsa20(key):
+def test_crypto_core_hsalsa20(salt16, key32):
     out = crypto_core_hsalsa20(
-        in_=b'x' * crypto_core_hsalsa20_INPUTBYTES,
-        k=key,
-        c=b'x' * crypto_core_hsalsa20_CONSTBYTES,
+        in_=salt16,
+        k=key32,
+        c=salt16
     )
     assert isinstance(out, binary_type)
     assert len(out) == crypto_core_hsalsa20_OUTPUTBYTES
